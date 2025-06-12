@@ -80,7 +80,7 @@ const GetNextPendingTaskOutputSchema = z.object({
 });
 
 // MCPサーバーの作成
-const server = new Server(
+export const server = new Server(
   {
     name: "todo-list-server",
     version: "0.1.0",
