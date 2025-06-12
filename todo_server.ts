@@ -93,7 +93,7 @@ const server = new Server(
 );
 
 // Tool実装: create_session
-async function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
+function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
   const sessionId = generateUniqueId();
   const createdTasks: Task[] = [];
   let taskIdCounter = 1;
@@ -127,7 +127,7 @@ async function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
 }
 
 // Tool実装: add_task
-async function addTask(input: z.infer<typeof AddTaskInputSchema>) {
+function addTask(input: z.infer<typeof AddTaskInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
@@ -148,7 +148,7 @@ async function addTask(input: z.infer<typeof AddTaskInputSchema>) {
 }
 
 // Tool実装: get_tasks
-async function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
+function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
@@ -176,7 +176,7 @@ async function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
 }
 
 // Tool実装: update_task_status
-async function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchema>) {
+function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
@@ -198,7 +198,7 @@ async function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchem
 }
 
 // Tool実装: get_next_pending_task
-async function getNextPendingTask(input: z.infer<typeof GetNextPendingTaskInputSchema>) {
+function getNextPendingTask(input: z.infer<typeof GetNextPendingTaskInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
@@ -223,7 +223,7 @@ async function getNextPendingTask(input: z.infer<typeof GetNextPendingTaskInputS
 }
 
 // Toolの登録
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+server.setRequestHandler(ListToolsRequestSchema, () => {
   return {
     tools: [
       {
@@ -255,14 +255,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, (request) => {
   const { name, arguments: args } = request.params;
 
   try {
     switch (name) {
       case "create_session": {
         const input = CreateSessionInputSchema.parse(args);
-        const result = await createSession(input);
+        const result = createSession(input);
         return {
           content: [
             {
@@ -275,7 +275,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "add_task": {
         const input = AddTaskInputSchema.parse(args);
-        const result = await addTask(input);
+        const result = addTask(input);
         return {
           content: [
             {
@@ -288,7 +288,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "get_tasks": {
         const input = GetTasksInputSchema.parse(args);
-        const result = await getTasks(input);
+        const result = getTasks(input);
         return {
           content: [
             {
@@ -301,7 +301,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "update_task_status": {
         const input = UpdateTaskStatusInputSchema.parse(args);
-        const result = await updateTaskStatus(input);
+        const result = updateTaskStatus(input);
         return {
           content: [
             {
@@ -314,7 +314,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "get_next_pending_task": {
         const input = GetNextPendingTaskInputSchema.parse(args);
-        const result = await getNextPendingTask(input);
+        const result = getNextPendingTask(input);
         return {
           content: [
             {
