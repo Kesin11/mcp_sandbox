@@ -97,6 +97,12 @@ export const server = new Server(
 
 // Tool実装: create_session
 function createSession(input: CreateSessionInput): CreateSessionOutput {
+  if (!input.initial_tasks || input.initial_tasks.length === 0) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      "initial_tasks must not be empty",
+    );
+  }
   const sessionId = generateUniqueId();
   const createdTasks: Task[] = [];
   let taskIdCounter = 1;

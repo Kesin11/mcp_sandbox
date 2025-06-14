@@ -127,25 +127,13 @@ Deno.test("get_tasks", async () => {
   });
 });
 
-Deno.test("get_tasks with empty session", async () => {
-  const result = await client.callTool({
+Deno.test("create_session with empty initial_tasks should throw error", async () => {
+  await expect(client.callTool({
     name: "create_session",
     arguments: {
       initial_tasks: [],
     } as CreateSessionInput,
-  });
-  const sessionId = extractContent<CreateSessionOutput>(result).session_id;
-
-  const getTasksResult = await client.callTool({
-    name: "get_tasks",
-    arguments: {
-      session_id: sessionId,
-    },
-  });
-
-  expect(extractContent(getTasksResult)).toEqual({
-    tasks: [],
-  });
+  })).rejects.toThrow("initial_tasks must not be empty");
 });
 
 Deno.test("get_next_pending_task", async () => {
