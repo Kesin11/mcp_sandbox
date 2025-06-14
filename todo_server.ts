@@ -12,7 +12,7 @@ import { z } from "zod";
 export const TaskSchema = z.object({
   id: z.string(),
   description: z.string(),
-  status: z.enum(['pending', 'completed']),
+  status: z.enum(["pending", "completed"]),
 });
 
 export type Task = z.infer<typeof TaskSchema>;
@@ -53,7 +53,7 @@ const AddTaskOutputSchema = z.object({
 const GetTasksInputSchema = z.object({
   session_id: z.string(),
   task_id: z.string().optional(),
-  status: z.enum(['pending', 'completed', 'all']).optional(),
+  status: z.enum(["pending", "completed", "all"]).optional(),
 });
 
 const GetTasksOutputSchema = z.object({
@@ -63,7 +63,7 @@ const GetTasksOutputSchema = z.object({
 const UpdateTaskStatusInputSchema = z.object({
   session_id: z.string(),
   task_id: z.string(),
-  status: z.enum(['pending', 'completed']),
+  status: z.enum(["pending", "completed"]),
 });
 
 const UpdateTaskStatusOutputSchema = z.object({
@@ -89,7 +89,7 @@ export const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 // Tool実装: create_session
@@ -104,7 +104,7 @@ function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
       const task: Task = {
         id: taskIdCounter.toString(),
         description,
-        status: 'pending',
+        status: "pending",
       };
       createdTasks.push(task);
       taskIdCounter++;
@@ -130,13 +130,16 @@ function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
 function addTask(input: z.infer<typeof AddTaskInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
-    throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Session not found: ${input.session_id}`,
+    );
   }
 
   const newTask: Task = {
     id: session.next_task_id_counter.toString(),
     description: input.description,
-    status: 'pending',
+    status: "pending",
   };
 
   session.tasks.push(newTask);
@@ -151,12 +154,15 @@ function addTask(input: z.infer<typeof AddTaskInputSchema>) {
 function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
-    throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Session not found: ${input.session_id}`,
+    );
   }
 
   // 特定のタスクIDが指定された場合
   if (input.task_id) {
-    const task = session.tasks.find(t => t.id === input.task_id);
+    const task = session.tasks.find((t) => t.id === input.task_id);
     return {
       tasks: task ? [task] : [],
     };
@@ -164,10 +170,10 @@ function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
 
   // ステータスによるフィルタリング
   let filteredTasks = session.tasks;
-  const status = input.status || 'all';
-  
-  if (status !== 'all') {
-    filteredTasks = session.tasks.filter(t => t.status === status);
+  const status = input.status || "all";
+
+  if (status !== "all") {
+    filteredTasks = session.tasks.filter((t) => t.status === status);
   }
 
   return {
@@ -179,10 +185,13 @@ function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
 function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchema>) {
   const session = sessions.get(input.session_id);
   if (!session) {
-    throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Session not found: ${input.session_id}`,
+    );
   }
 
-  const task = session.tasks.find(t => t.id === input.task_id);
+  const task = session.tasks.find((t) => t.id === input.task_id);
   if (!task) {
     return {
       success: false,
@@ -198,14 +207,19 @@ function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchema>) {
 }
 
 // Tool実装: get_next_pending_task
-function getNextPendingTask(input: z.infer<typeof GetNextPendingTaskInputSchema>) {
+function getNextPendingTask(
+  input: z.infer<typeof GetNextPendingTaskInputSchema>,
+) {
   const session = sessions.get(input.session_id);
   if (!session) {
-    throw new McpError(ErrorCode.InvalidRequest, `Session not found: ${input.session_id}`);
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Session not found: ${input.session_id}`,
+    );
   }
 
-  const pendingTasks = session.tasks.filter(t => t.status === 'pending');
-  
+  const pendingTasks = session.tasks.filter((t) => t.status === "pending");
+
   // IDが最も小さいタスクを返す（追加順を保持）
   if (pendingTasks.length === 0) {
     return {
@@ -213,7 +227,7 @@ function getNextPendingTask(input: z.infer<typeof GetNextPendingTaskInputSchema>
     };
   }
 
-  const nextTask = pendingTasks.reduce((prev, current) => 
+  const nextTask = pendingTasks.reduce((prev, current) =>
     parseInt(prev.id) < parseInt(current.id) ? prev : current
   );
 
@@ -226,29 +240,43 @@ function getNextPendingTask(input: z.infer<typeof GetNextPendingTaskInputSchema>
 server.setRequestHandler(ListToolsRequestSchema, () => {
   return {
     tools: [
+      // TODO: outputSchema, annotationsを追加する
+      // schemaの定義と離れていて非常に視認性が悪いので、name, descriptionも上の方で定義する
+      // 最初に型定義を自分の方で行って、それを元にLLMに実装させるのが効率良さそう
+
+      // 初期タスクのリストは必須にする
+      // outputに全てのタスクのリストを含める
       {
         name: "create_session",
-        description: "新しいTODOリストセッションを開始します。オプションで初期タスクのリストを説明文で与えることができます。",
+        description:
+          "新しいTODOリストセッションを開始します。オプションで初期タスクのリストを説明文で与えることができます。",
         inputSchema: CreateSessionInputSchema,
       },
+      // 廃止
       {
         name: "add_task",
         description: "既存のセッションに新しいタスクを追加します。",
         inputSchema: AddTaskInputSchema,
       },
+      // statusフィルタリングは廃止、全てのタスクのリストを取得
       {
         name: "get_tasks",
-        description: "指定されたセッションのタスクを取得します。task_idを指定すると特定のタスクを、statusを指定すると状態でフィルタリングされたタスクリストを返します。",
+        description:
+          "指定されたセッションのタスクを取得します。task_idを指定すると特定のタスクを、statusを指定すると状態でフィルタリングされたタスクリストを返します。",
         inputSchema: GetTasksInputSchema,
       },
+      // TODO: outputに全てのタスクのリストを含める
       {
         name: "update_task_status",
-        description: "指定されたタスクの状態を更新します。これにより、タスクを完了(completed)にしたり、未完了(pending)に戻したりできます。",
+        description:
+          "指定されたタスクの状態を更新します。これにより、タスクを完了(completed)にしたり、未完了(pending)に戻したりできます。",
         inputSchema: UpdateTaskStatusInputSchema,
       },
+      // 一応残しておいてよいか
       {
         name: "get_next_pending_task",
-        description: "指定されたセッションで、次に実行すべき未完了(pending)のタスクを1つ取得します。タスクは追加された順で取得されます。",
+        description:
+          "指定されたセッションで、次に実行すべき未完了(pending)のタスクを1つ取得します。タスクは追加された順で取得されます。",
         inputSchema: GetNextPendingTaskInputSchema,
       },
     ],
@@ -267,7 +295,11 @@ server.setRequestHandler(CallToolRequestSchema, (request) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(CreateSessionOutputSchema.parse(result), null, 2),
+              text: JSON.stringify(
+                CreateSessionOutputSchema.parse(result),
+                null,
+                2,
+              ),
             },
           ],
         };
@@ -306,7 +338,11 @@ server.setRequestHandler(CallToolRequestSchema, (request) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(UpdateTaskStatusOutputSchema.parse(result), null, 2),
+              text: JSON.stringify(
+                UpdateTaskStatusOutputSchema.parse(result),
+                null,
+                2,
+              ),
             },
           ],
         };
@@ -319,7 +355,11 @@ server.setRequestHandler(CallToolRequestSchema, (request) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(GetNextPendingTaskOutputSchema.parse(result), null, 2),
+              text: JSON.stringify(
+                GetNextPendingTaskOutputSchema.parse(result),
+                null,
+                2,
+              ),
             },
           ],
         };
@@ -330,7 +370,10 @@ server.setRequestHandler(CallToolRequestSchema, (request) => {
     }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new McpError(ErrorCode.InvalidParams, `Invalid parameters: ${error.message}`);
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${error.message}`,
+      );
     }
     throw error;
   }
