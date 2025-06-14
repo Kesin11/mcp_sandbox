@@ -201,3 +201,33 @@ Deno.test("get_next_pending_task after completing first task", async () => {
     },
   });
 });
+
+Deno.test("get_next_pending_task when no pending tasks exist", async () => {
+  const createResult = await createSession(client);
+  const sessionId =
+    extractContent<CreateSessionOutput>(createResult).session_id;
+  const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
+
+  // 全てのタスクを完了済みにする
+  for (const task of tasks) {
+    await client.callTool({
+      name: "update_task_status",
+      arguments: {
+        session_id: sessionId,
+        task_id: task.id,
+        status: "completed",
+      },
+    });
+  }
+
+  const result = await client.callTool({
+    name: "get_next_pending_task",
+    arguments: {
+      session_id: sessionId,
+    },
+  });
+
+  expect(extractContent(result)).toEqual({
+    next_task: null,
+  });
+});

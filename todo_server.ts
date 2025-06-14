@@ -76,7 +76,7 @@ export type GetNextPendingTaskInput = z.infer<
 >;
 
 const GetNextPendingTaskOutputSchema = z.object({
-  next_task: TaskSchema,
+  next_task: TaskSchema.nullable(),
 });
 export type GetNextPendingTaskOutput = z.infer<
   typeof GetNextPendingTaskOutputSchema
@@ -185,6 +185,13 @@ function getNextPendingTask(
   }
 
   const pendingTasks = session.tasks.filter((t) => t.status === "pending");
+
+  // pending状態のタスクが存在しない場合はnullを返す
+  if (pendingTasks.length === 0) {
+    return {
+      next_task: null,
+    };
+  }
 
   const nextTask = pendingTasks.reduce((prev, current) =>
     parseInt(prev.id) < parseInt(current.id) ? prev : current
