@@ -7,10 +7,10 @@ import { z } from "zod";
 export const TaskSchema = z.object({
   id: z.string().describe("ユニークなタスクID"),
   description: z.string().describe(
-    "タスクの説明。何をする必要があるかを記述します。",
+    "タスクの説明。何をする必要があるかを記述します",
   ),
   status: z.enum(["pending", "completed"]).describe(
-    "タスクの状態。'pending'は未完了、'completed'は完了を示します。",
+    "タスクの状態。'pending'は未完了、'completed'は完了を示します",
   ),
 });
 
@@ -33,7 +33,7 @@ function generateUniqueId(): string {
 // Tool入力/出力スキーマの定義
 const CreateSessionInputSchema = z.object({
   initial_tasks: z.array(z.string()).describe(
-    "初期タスクのリスト。各タスクは説明文で与えられます。",
+    "初期タスクのリスト。各タスクは説明文で与えられます",
   ),
 });
 export type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;
@@ -46,7 +46,7 @@ export type CreateSessionOutput = z.infer<typeof CreateSessionOutputSchema>;
 
 const GetTasksInputSchema = z.object({
   session_id: z.string().describe(
-    "タスクを取得するセッションのID。",
+    "タスクを取得するセッションのID",
   ),
 });
 export type GetTasksInput = z.infer<typeof GetTasksInputSchema>;
@@ -58,11 +58,11 @@ export type GetTasksOutput = z.infer<typeof GetTasksOutputSchema>;
 
 const UpdateTaskStatusInputSchema = z.object({
   session_id: z.string().describe(
-    "タスクの状態を更新するセッションのID。",
+    "タスクの状態を更新するセッションのID",
   ),
   task_id: z.string().describe("状態を更新するタスクのID。"),
   status: z.enum(["pending", "completed"]).describe(
-    "タスクの新しい状態。",
+    "タスクの新しい状態",
   ),
 });
 export type UpdateTaskStatusInput = z.infer<typeof UpdateTaskStatusInputSchema>;
@@ -76,7 +76,7 @@ export type UpdateTaskStatusOutput = z.infer<
 >;
 
 const GetNextPendingTaskInputSchema = z.object({
-  session_id: z.string().describe("タスクの状態を取得するセッションのID。"),
+  session_id: z.string().describe("タスクの状態を取得するセッションのID"),
 });
 export type GetNextPendingTaskInput = z.infer<
   typeof GetNextPendingTaskInputSchema
@@ -252,7 +252,7 @@ server.tool(
 
 server.tool(
   "get_tasks",
-  "指定されたセッションのタスクを取得します。task_idを指定すると特定のタスクを、statusを指定すると状態でフィルタリングされたタスクリストを返します。",
+  "指定されたセッションのタスクを取得します",
   GetTasksInputSchema.shape,
   {
     title: "Get tasks for a session",
