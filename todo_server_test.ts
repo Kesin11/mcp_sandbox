@@ -128,12 +128,18 @@ Deno.test("get_tasks", async () => {
 });
 
 Deno.test("create_session with empty initial_tasks should throw error", async () => {
-  await expect(client.callTool({
+  const result = await client.callTool({
     name: "create_session",
     arguments: {
       initial_tasks: [],
     } as CreateSessionInput,
-  })).rejects.toThrow("initial_tasks must not be empty");
+  });
+
+  // MCPエラーの場合、isError: trueが返される
+  expect((result as { isError: boolean }).isError).toBe(true);
+  expect((result as { content: mcpOutputContent }).content[0].text).toContain(
+    "initial_tasks must not be empty",
+  );
 });
 
 Deno.test("get_next_pending_task", async () => {
