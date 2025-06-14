@@ -1,5 +1,9 @@
 import { expect } from "@std/expect";
-import { CreateSessionInput, server } from "./todo_server.ts";
+import {
+  CreateSessionInput,
+  CreateSessionOutput,
+  server,
+} from "./todo_server.ts";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -20,7 +24,7 @@ await Promise.all([
 ]);
 type mcpOutputContent = { type: string; text: string }[];
 
-Deno.test("create_session", async () => {
+async function createSession(client: Client) {
   const result = await client.callTool({
     name: "create_session",
     arguments: {
@@ -30,14 +34,61 @@ Deno.test("create_session", async () => {
       ],
     } as CreateSessionInput,
   });
-  const content = result.content as mcpOutputContent;
-  expect(JSON.parse(content[0].text)).toEqual({
+  return result;
+}
+
+function extractContent<T>(
+  result: unknown,
+): T {
+  return JSON.parse(
+    (result as { content: mcpOutputContent }).content[0].text,
+  ) as T;
+}
+
+Deno.test("create_session", async () => {
+  const result = await createSession(client);
+  expect(extractContent(result)).toEqual({
     session_id: expect.any(String),
     tasks: [
       {
         id: expect.any(String),
         description: "Create a weather app",
         status: "pending",
+      },
+      {
+        id: expect.any(String),
+        description: "Write tests for the app",
+        status: "pending",
+      },
+    ],
+  });
+});
+
+Deno.test("update_task_status", async () => {
+  const createResult = await createSession(client);
+  const sessionId =
+    extractContent<CreateSessionOutput>(createResult).session_id;
+  const taskId = extractContent<CreateSessionOutput>(createResult).tasks[0].id;
+  const result = await client.callTool({
+    name: "update_task_status",
+    arguments: {
+      session_id: sessionId,
+      task_id: taskId,
+      status: "completed",
+    },
+  });
+
+  expect(extractContent(result)).toEqual({
+    updated_task: {
+      id: taskId,
+      description: "Create a weather app",
+      status: "completed",
+    },
+    tasks: [
+      {
+        id: expect.any(String),
+        description: "Create a weather app",
+        status: "completed",
       },
       {
         id: expect.any(String),

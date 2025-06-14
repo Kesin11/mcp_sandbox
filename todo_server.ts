@@ -41,7 +41,7 @@ const CreateSessionOutputSchema = z.object({
   session_id: z.string(),
   tasks: z.array(TaskSchema),
 });
-type CreateSessionOutput = z.infer<typeof CreateSessionOutputSchema>;
+export type CreateSessionOutput = z.infer<typeof CreateSessionOutputSchema>;
 
 const GetTasksInputSchema = z.object({
   session_id: z.string(),
