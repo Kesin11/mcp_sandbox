@@ -1,5 +1,5 @@
 import { expect } from "@std/expect";
-import { server } from "./todo_server.ts";
+import { CreateSessionInput, server } from "./todo_server.ts";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -24,16 +24,16 @@ Deno.test("create_session", async () => {
   const result = await client.callTool({
     name: "create_session",
     arguments: {
-      "initial_task_descriptions": [
+      initial_tasks: [
         "Create a weather app",
         "Write tests for the app",
       ],
-    },
+    } as CreateSessionInput,
   });
   const content = result.content as mcpOutputContent;
   expect(JSON.parse(content[0].text)).toEqual({
     session_id: expect.any(String),
-    created_tasks: [
+    tasks: [
       {
         id: expect.any(String),
         description: "Create a weather app",

@@ -33,51 +33,54 @@ function generateUniqueId(): string {
 
 // Tool入力/出力スキーマの定義
 const CreateSessionInputSchema = z.object({
-  initial_task_descriptions: z.array(z.string()).optional(),
+  initial_tasks: z.array(z.string()),
 });
+export type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;
 
 const CreateSessionOutputSchema = z.object({
   session_id: z.string(),
-  created_tasks: z.array(TaskSchema),
+  tasks: z.array(TaskSchema),
 });
-
-const AddTaskInputSchema = z.object({
-  session_id: z.string(),
-  description: z.string(),
-});
-
-const AddTaskOutputSchema = z.object({
-  added_task: TaskSchema,
-});
+type CreateSessionOutput = z.infer<typeof CreateSessionOutputSchema>;
 
 const GetTasksInputSchema = z.object({
   session_id: z.string(),
-  task_id: z.string().optional(),
-  status: z.enum(["pending", "completed", "all"]).optional(),
 });
+export type GetTasksInput = z.infer<typeof GetTasksInputSchema>;
 
 const GetTasksOutputSchema = z.object({
   tasks: z.array(TaskSchema),
 });
+export type GetTasksOutput = z.infer<typeof GetTasksOutputSchema>;
 
 const UpdateTaskStatusInputSchema = z.object({
   session_id: z.string(),
   task_id: z.string(),
   status: z.enum(["pending", "completed"]),
 });
+export type UpdateTaskStatusInput = z.infer<typeof UpdateTaskStatusInputSchema>;
 
 const UpdateTaskStatusOutputSchema = z.object({
-  success: z.boolean(),
-  updated_task: TaskSchema.optional(),
+  updated_task: TaskSchema,
+  tasks: z.array(TaskSchema),
 });
+export type UpdateTaskStatusOutput = z.infer<
+  typeof UpdateTaskStatusOutputSchema
+>;
 
 const GetNextPendingTaskInputSchema = z.object({
   session_id: z.string(),
 });
+export type GetNextPendingTaskInput = z.infer<
+  typeof GetNextPendingTaskInputSchema
+>;
 
 const GetNextPendingTaskOutputSchema = z.object({
-  next_task: TaskSchema.nullable(),
+  next_task: TaskSchema,
 });
+export type GetNextPendingTaskOutput = z.infer<
+  typeof GetNextPendingTaskOutputSchema
+>;
 
 // MCPサーバーの作成
 export const server = new Server(
@@ -93,14 +96,14 @@ export const server = new Server(
 );
 
 // Tool実装: create_session
-function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
+function createSession(input: CreateSessionInput): CreateSessionOutput {
   const sessionId = generateUniqueId();
   const createdTasks: Task[] = [];
   let taskIdCounter = 1;
 
   // 初期タスクの作成
-  if (input.initial_task_descriptions) {
-    for (const description of input.initial_task_descriptions) {
+  if (input.initial_tasks) {
+    for (const description of input.initial_tasks) {
       const task: Task = {
         id: taskIdCounter.toString(),
         description,
@@ -122,36 +125,12 @@ function createSession(input: z.infer<typeof CreateSessionInputSchema>) {
 
   return {
     session_id: sessionId,
-    created_tasks: createdTasks,
-  };
-}
-
-// Tool実装: add_task
-function addTask(input: z.infer<typeof AddTaskInputSchema>) {
-  const session = sessions.get(input.session_id);
-  if (!session) {
-    throw new McpError(
-      ErrorCode.InvalidRequest,
-      `Session not found: ${input.session_id}`,
-    );
-  }
-
-  const newTask: Task = {
-    id: session.next_task_id_counter.toString(),
-    description: input.description,
-    status: "pending",
-  };
-
-  session.tasks.push(newTask);
-  session.next_task_id_counter++;
-
-  return {
-    added_task: newTask,
+    tasks: createdTasks,
   };
 }
 
 // Tool実装: get_tasks
-function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
+function getTasks(input: GetTasksInput): GetTasksOutput {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(
@@ -160,29 +139,15 @@ function getTasks(input: z.infer<typeof GetTasksInputSchema>) {
     );
   }
 
-  // 特定のタスクIDが指定された場合
-  if (input.task_id) {
-    const task = session.tasks.find((t) => t.id === input.task_id);
-    return {
-      tasks: task ? [task] : [],
-    };
-  }
-
-  // ステータスによるフィルタリング
-  let filteredTasks = session.tasks;
-  const status = input.status || "all";
-
-  if (status !== "all") {
-    filteredTasks = session.tasks.filter((t) => t.status === status);
-  }
-
   return {
-    tasks: filteredTasks,
+    tasks: session.tasks,
   };
 }
 
 // Tool実装: update_task_status
-function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchema>) {
+function updateTaskStatus(
+  input: UpdateTaskStatusInput,
+): UpdateTaskStatusOutput {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(
@@ -193,23 +158,24 @@ function updateTaskStatus(input: z.infer<typeof UpdateTaskStatusInputSchema>) {
 
   const task = session.tasks.find((t) => t.id === input.task_id);
   if (!task) {
-    return {
-      success: false,
-    };
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Task not found: ${input.task_id}`,
+    );
   }
 
   task.status = input.status;
 
   return {
-    success: true,
+    tasks: session.tasks,
     updated_task: task,
   };
 }
 
 // Tool実装: get_next_pending_task
 function getNextPendingTask(
-  input: z.infer<typeof GetNextPendingTaskInputSchema>,
-) {
+  input: GetNextPendingTaskInput,
+): GetNextPendingTaskOutput {
   const session = sessions.get(input.session_id);
   if (!session) {
     throw new McpError(
@@ -219,13 +185,6 @@ function getNextPendingTask(
   }
 
   const pendingTasks = session.tasks.filter((t) => t.status === "pending");
-
-  // IDが最も小さいタスクを返す（追加順を保持）
-  if (pendingTasks.length === 0) {
-    return {
-      next_task: null,
-    };
-  }
 
   const nextTask = pendingTasks.reduce((prev, current) =>
     parseInt(prev.id) < parseInt(current.id) ? prev : current
@@ -240,44 +199,49 @@ function getNextPendingTask(
 server.setRequestHandler(ListToolsRequestSchema, () => {
   return {
     tools: [
-      // TODO: outputSchema, annotationsを追加する
-      // schemaの定義と離れていて非常に視認性が悪いので、name, descriptionも上の方で定義する
-      // 最初に型定義を自分の方で行って、それを元にLLMに実装させるのが効率良さそう
-
-      // 初期タスクのリストは必須にする
-      // outputに全てのタスクのリストを含める
       {
         name: "create_session",
         description:
           "新しいTODOリストセッションを開始します。オプションで初期タスクのリストを説明文で与えることができます。",
         inputSchema: CreateSessionInputSchema,
+        outputSchema: CreateSessionOutputSchema,
+        annotations: {
+          title: "Create a new TODO list session",
+          destructiveHint: true,
+        },
       },
-      // 廃止
-      {
-        name: "add_task",
-        description: "既存のセッションに新しいタスクを追加します。",
-        inputSchema: AddTaskInputSchema,
-      },
-      // statusフィルタリングは廃止、全てのタスクのリストを取得
-      {
-        name: "get_tasks",
-        description:
-          "指定されたセッションのタスクを取得します。task_idを指定すると特定のタスクを、statusを指定すると状態でフィルタリングされたタスクリストを返します。",
-        inputSchema: GetTasksInputSchema,
-      },
-      // TODO: outputに全てのタスクのリストを含める
       {
         name: "update_task_status",
         description:
           "指定されたタスクの状態を更新します。これにより、タスクを完了(completed)にしたり、未完了(pending)に戻したりできます。",
         inputSchema: UpdateTaskStatusInputSchema,
+        outputSchema: UpdateTaskStatusOutputSchema,
+        annotations: {
+          title: "Update the status of a task",
+          destructiveHint: true,
+        },
       },
-      // 一応残しておいてよいか
+      {
+        name: "get_tasks",
+        description:
+          "指定されたセッションのタスクを取得します。task_idを指定すると特定のタスクを、statusを指定すると状態でフィルタリングされたタスクリストを返します。",
+        inputSchema: GetTasksInputSchema,
+        outputSchema: GetTasksOutputSchema,
+        annotations: {
+          title: "Get tasks for a session",
+          idempotentHint: true,
+        },
+      },
       {
         name: "get_next_pending_task",
         description:
           "指定されたセッションで、次に実行すべき未完了(pending)のタスクを1つ取得します。タスクは追加された順で取得されます。",
         inputSchema: GetNextPendingTaskInputSchema,
+        outputSchema: GetNextPendingTaskOutputSchema,
+        annotations: {
+          title: "Get the next pending task",
+          idempotentHint: true,
+        },
       },
     ],
   };
@@ -300,19 +264,6 @@ server.setRequestHandler(CallToolRequestSchema, (request) => {
                 null,
                 2,
               ),
-            },
-          ],
-        };
-      }
-
-      case "add_task": {
-        const input = AddTaskInputSchema.parse(args);
-        const result = addTask(input);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(AddTaskOutputSchema.parse(result), null, 2),
             },
           ],
         };
