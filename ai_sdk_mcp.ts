@@ -2,11 +2,25 @@ import { experimental_createMCPClient, generateText } from "npm:ai";
 import { Experimental_StdioMCPTransport } from "npm:ai/mcp-stdio";
 import { createOpenAI } from "npm:@ai-sdk/openai";
 
-// GitHub Models経由でOpenAI GPT-4.1を使用
+// GitHub Models経由で各種モデルを使用
+// openai/gpt-4.1: OK
+// openai/gpt-4.1-mini: OK
+// deepseek/deepseek-r1-0528: レートリミットが厳しいため実質使用不
+// deepseek/deepseek-v3-0324: レートリミットが厳しいため実質使用不可
+// meta/Llama-4-Maverick-17B-128E-Instruct-FP8: OK
+// meta/llama-4-scout-17b-16e-instruct: 動作せず
+// meta/llama-3.3-70b-instruct: 応答が返ってこない。あるいはtoolを正しく使えない
+// meta/meta-llama-3.1-8b-instruct: toolを正しく使えない
+// microsoft/phi-3-medium-128k-instruct: そもそもtoolを使えない
+// microsoft/Phi-4: そもそもtoolを使えないっぽい？
+
+// リトライ設定（maxRetriesのみ設定可能）
+const MAX_RETRIES = parseInt(Deno.env.get("MAX_RETRIES") || "3");
+
 const model = createOpenAI({
   baseURL: "https://models.github.ai/inference",
   apiKey: Deno.env.get("GITHUB_TOKEN") || "dummy-key-for-github-models",
-}).chat("openai/gpt-4.1");
+}).chat(Deno.args[1] || "openai/gpt-4.1");
 
 async function main() {
   const userInput = Deno.args[0] ||
@@ -28,11 +42,19 @@ async function main() {
     // MCPサーバーからtoolsを取得
     const tools = await client.tools();
 
+    // モデル情報
+    console.log("=== 使用するモデル ===");
+    console.log(`モデルID: ${model.modelId}`);
+
     // AI処理の実行
+    // リトライ設定の詳細：
+    // - maxRetries: レートリミットやネットワークエラー時の最大リトライ回数（環境変数で設定可能）
+    // - AI SDKは内部で固定の指数バックオフを使用（初期待機時間: 2秒、係数: 2倍）
     const response = await generateText({
       model,
       tools,
       maxSteps: 10,
+      maxRetries: MAX_RETRIES,
       messages: [
         {
           role: "system",
@@ -93,6 +115,42 @@ async function main() {
     });
   } catch (error) {
     console.error("エラーが発生しました:", error);
+
+    // リトライエラーの詳細を表示
+    if (error instanceof Error && error.name === "RetryError") {
+      console.error("=== リトライエラーの詳細 ===");
+      const retryError = error as Error & {
+        reason?: string;
+        errors?: unknown[];
+      };
+      console.error(`理由: ${retryError.reason || "不明"}`);
+      console.error(`メッセージ: ${error.message}`);
+      console.error(`試行回数: ${retryError.errors?.length || "不明"}`);
+
+      if (retryError.errors) {
+        console.error("エラー履歴:");
+        retryError.errors.forEach((err: unknown, index: number) => {
+          const errMessage = err instanceof Error ? err.message : String(err);
+          console.error(`  ${index + 1}. ${errMessage}`);
+        });
+      }
+    }
+
+    // リトライエラーの場合
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+      console.error(
+        "\n💡 ヒント: レートリミットに達している可能性があります。",
+      );
+      console.error("以下の環境変数で設定を調整してください:");
+      console.error(
+        "- MAX_RETRIES: リトライ回数を増やす（現在: " + MAX_RETRIES + "）",
+      );
+      console.error(
+        "注意: AI SDKの内部リトライ設定（初期待機2秒、係数2倍）は変更できません",
+      );
+      console.error("\n例: MAX_RETRIES=10 deno run --allow-all ai_sdk_mcp.ts");
+    }
   } finally {
     // リソースのクリーンアップ
     await client?.close();
