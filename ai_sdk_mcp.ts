@@ -56,6 +56,41 @@ async function main() {
 
     console.log("=== AI Todo Manager の結果 ===");
     console.log(response.text);
+
+    // 詳細なログを出力
+    console.log("\n=== 詳細なやり取りログ ===");
+    console.log(`総ステップ数: ${response.steps.length}`);
+    console.log(`最終結果: ${response.finishReason}`);
+    console.log(`トークン使用量: ${JSON.stringify(response.usage)}`);
+
+    // 各ステップの詳細を出力
+    response.steps.forEach((step, index) => {
+      console.log(`\n--- ステップ ${index + 1} (${step.stepType}) ---`);
+
+      if (step.text) {
+        console.log(`テキスト応答: ${step.text}`);
+      }
+
+      if (step.toolCalls && step.toolCalls.length > 0) {
+        console.log("ツール呼び出し:");
+        step.toolCalls.forEach((call, callIndex) => {
+          console.log(`  ${callIndex + 1}. ${call.toolName}`);
+          console.log(`     引数: ${JSON.stringify(call.args, null, 2)}`);
+        });
+      }
+
+      if (step.toolResults && step.toolResults.length > 0) {
+        console.log("ツール実行結果:");
+        step.toolResults.forEach((result, resultIndex) => {
+          console.log(`  ${resultIndex + 1}. ${result.toolName}`);
+          console.log(`     結果: ${JSON.stringify(result.result, null, 2)}`);
+        });
+      }
+
+      if (step.usage) {
+        console.log(`ステップ使用量: ${JSON.stringify(step.usage)}`);
+      }
+    });
   } catch (error) {
     console.error("エラーが発生しました:", error);
   } finally {
