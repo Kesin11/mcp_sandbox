@@ -137,3 +137,6 @@ dist
 
 # my mcp config
 .vscode/mcp.json
+
+# progress file for AI Coding
+progress.md
