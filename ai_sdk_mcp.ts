@@ -1,11 +1,12 @@
 import { experimental_createMCPClient, generateText } from "npm:ai";
 import { Experimental_StdioMCPTransport } from "npm:ai/mcp-stdio";
 import { createOpenAI } from "npm:@ai-sdk/openai";
+import { createOllama } from "npm:ollama-ai-provider";
 import { parseArgs } from "jsr:@std/cli/parse-args";
 
 // プロバイダー設定の型定義
 interface ProviderConfig {
-  provider: "github" | "openrouter";
+  provider: "github" | "openrouter" | "ollama";
   baseURL: string;
   apiKey: string;
   model: string;
@@ -14,9 +15,10 @@ interface ProviderConfig {
 // コマンドライン引数の型定義
 interface ParsedArgs {
   message: string;
-  provider: "github" | "openrouter";
+  provider: "github" | "openrouter" | "ollama";
   token?: string;
   model: string;
+  baseUrl?: string;
   help: boolean;
 }
 
@@ -33,8 +35,9 @@ AI SDK MCP クライアント - マルチプロバイダー対応TODOタスク�
   --model, -m          使用するモデル名（必須）
 
 オプションパラメータ:
-  --provider, -p       プロバイダー選択 (github|openrouter) [デフォルト: github]
+  --provider, -p       プロバイダー選択 (github|openrouter|ollama) [デフォルト: github]
   --token, -t          APIトークン（環境変数より優先）
+  --baseUrl, -b        カスタムbaseURL（全プロバイダー対応）
   --help, -h           このヘルプを表示
 
 環境変数:
@@ -46,11 +49,26 @@ AI SDK MCP クライアント - マルチプロバイダー対応TODOタスク�
   # GitHub Models（デフォルト）
   deno run --allow-all ai_sdk_mcp.ts "タスク作成してください" --model "openai/gpt-4.1"
   
+  # GitHub Models、別のモデル
+  deno run --allow-all ai_sdk_mcp.ts "タスク作成" --model "openai/gpt-4.1-mini"
+  
   # OpenRouter使用
   deno run --allow-all ai_sdk_mcp.ts "タスク作成" --provider openrouter --model "openai/gpt-4"
   
   # OpenRouter、Claudeモデル
   deno run --allow-all ai_sdk_mcp.ts "タスク作成" --provider openrouter --model "anthropic/claude-3.5-sonnet"
+  
+  # Ollama使用（ローカル）
+  deno run --allow-all ai_sdk_mcp.ts "タスク作成" --provider ollama --model "llama3.1"
+  
+  # Ollama、カスタムURL
+  deno run --allow-all ai_sdk_mcp.ts "タスク作成" --provider ollama --model "phi3" --baseUrl "http://remote-ollama:11434"
+  
+  # GitHub Models、カスタムbaseURL
+  deno run --allow-all ai_sdk_mcp.ts "タスク作成" --provider github --model "openai/gpt-4.1" --baseUrl "https://custom-github-models.example.com"
+  
+  # トークン明示指定
+  deno run --allow-all ai_sdk_mcp.ts "タスク作成" --provider openrouter --model "openai/gpt-4" --token "sk-xxx"
 
 対応モデルの例:
   GitHub Models:
@@ -63,15 +81,23 @@ AI SDK MCP クライアント - マルチプロバイダー対応TODOタスク�
     - anthropic/claude-3.5-sonnet
     - meta-llama/llama-3.1-70b
     - google/gemini-pro
+    
+  Ollama:
+    - llama3.1
+    - llama3.2
+    - phi3
+    - mistral
+    - codellama
+    - gemma
 `);
 }
 
 // コマンドライン引数を解析
 function parseCommandLineArgs(): ParsedArgs {
   const flags = parseArgs(Deno.args, {
-    string: ["provider", "token", "model"],
+    string: ["provider", "token", "model", "baseUrl"],
     boolean: ["help"],
-    alias: { p: "provider", t: "token", m: "model", h: "help" },
+    alias: { p: "provider", t: "token", m: "model", b: "baseUrl", h: "help" },
     default: { provider: "github" },
   });
 
@@ -94,17 +120,21 @@ function parseCommandLineArgs(): ParsedArgs {
     throw new Error("--model パラメータは必須です。");
   }
 
-  if (flags.provider !== "github" && flags.provider !== "openrouter") {
+  if (
+    flags.provider !== "github" && flags.provider !== "openrouter" &&
+    flags.provider !== "ollama"
+  ) {
     throw new Error(
-      "--provider は 'github' または 'openrouter' を指定してください。",
+      "--provider は 'github'、'openrouter'、または 'ollama' を指定してください。",
     );
   }
 
   return {
     message,
-    provider: flags.provider as "github" | "openrouter",
+    provider: flags.provider as "github" | "openrouter" | "ollama",
     token: flags.token,
     model: flags.model,
+    baseUrl: flags.baseUrl,
     help: false,
   };
 }
@@ -115,7 +145,7 @@ function createProviderConfig(args: ParsedArgs): ProviderConfig {
     case "github":
       return {
         provider: "github",
-        baseURL: "https://models.github.ai/inference",
+        baseURL: args.baseUrl || "https://models.github.ai/inference",
         apiKey: args.token || Deno.env.get("GITHUB_TOKEN") ||
           "dummy-key-for-github-models",
         model: args.model,
@@ -129,11 +159,18 @@ function createProviderConfig(args: ParsedArgs): ProviderConfig {
       }
       return {
         provider: "openrouter",
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: args.baseUrl || "https://openrouter.ai/api/v1",
         apiKey: openrouterKey,
         model: args.model,
       };
     }
+    case "ollama":
+      return {
+        provider: "ollama",
+        baseURL: args.baseUrl || "http://localhost:11434/api",
+        apiKey: "", // Ollama は認証不要
+        model: args.model,
+      };
     default:
       throw new Error(`サポートされていないプロバイダー: ${args.provider}`);
   }
@@ -141,10 +178,20 @@ function createProviderConfig(args: ParsedArgs): ProviderConfig {
 
 // モデルクライアントを作成
 function createModelClient(config: ProviderConfig) {
-  return createOpenAI({
-    baseURL: config.baseURL,
-    apiKey: config.apiKey,
-  }).chat(config.model);
+  switch (config.provider) {
+    case "github":
+    case "openrouter":
+      return createOpenAI({
+        baseURL: config.baseURL,
+        apiKey: config.apiKey,
+      }).chat(config.model);
+    case "ollama":
+      return createOllama({
+        baseURL: config.baseURL,
+      }).chat(config.model);
+    default:
+      throw new Error(`サポートされていないプロバイダー: ${config.provider}`);
+  }
 }
 
 // リトライ設定（maxRetriesのみ設定可能）

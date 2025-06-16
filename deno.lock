@@ -12,6 +12,8 @@
     "npm:@modelcontextprotocol/sdk@^1.12.1": "1.12.1_express@5.1.0_zod@3.25.62",
     "npm:ai@*": "4.3.16_zod@3.25.62",
     "npm:ai@^4.3.16": "4.3.16_zod@3.25.62",
+    "npm:ollama-ai-provider@*": "1.2.0_zod@3.25.62",
+    "npm:ollama-ai-provider@^1.2.0": "1.2.0_zod@3.25.62",
     "npm:zod@^3.25.62": "3.25.62"
   },
   "jsr": {
@@ -427,6 +429,18 @@
     "object-inspect@1.13.4": {
       "integrity": "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=="
     },
+    "ollama-ai-provider@1.2.0_zod@3.25.62": {
+      "integrity": "sha512-jTNFruwe3O/ruJeppI/quoOUxG7NA6blG3ZyQj3lei4+NnJo7bi3eIRWqlVpRlu/mbzbFXeJSBuYQWF6pzGKww==",
+      "dependencies": [
+        "@ai-sdk/provider",
+        "@ai-sdk/provider-utils",
+        "partial-json",
+        "zod"
+      ],
+      "optionalPeers": [
+        "zod"
+      ]
+    },
     "on-finished@2.4.1": {
       "integrity": "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==",
       "dependencies": [
@@ -441,6 +455,9 @@
     },
     "parseurl@1.3.3": {
       "integrity": "sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ=="
+    },
+    "partial-json@0.1.7": {
+      "integrity": "sha512-Njv/59hHaokb/hRUjce3Hdv12wd60MtM9Z5Olmn+nehe0QDAsRtRbJPvJ0Z91TusF0SuZRIvnM+S4l6EIP8leA=="
     },
     "path-key@3.1.1": {
       "integrity": "sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q=="
@@ -647,6 +664,7 @@
       "npm:@ai-sdk/openai@^1.3.22",
       "npm:@modelcontextprotocol/sdk@^1.12.1",
       "npm:ai@^4.3.16",
+      "npm:ollama-ai-provider@^1.2.0",
       "npm:zod@^3.25.62"
     ]
   }
