@@ -3,14 +3,14 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-// データ構造の定義
+// Define data structures
 export const TaskSchema = z.object({
-  id: z.string().describe("ユニークなタスクID"),
+  id: z.string().describe("Unique task ID"),
   description: z.string().describe(
-    "タスクの説明。何をする必要があるかを記述します",
+    "Task description. Describes what needs to be done.",
   ),
   status: z.enum(["pending", "completed"]).describe(
-    "タスクの状態。'pending'は未完了、'completed'は完了を示します",
+    "Task status. 'pending' indicates incomplete, 'completed' indicates complete.",
   ),
 });
 
@@ -22,18 +22,18 @@ export interface Session {
   next_task_id_counter: number;
 }
 
-// インメモリデータストア
+// In-memory data store
 const sessions: Map<string, Session> = new Map();
 
-// ユニークIDの生成
+// Generate unique ID
 function generateUniqueId(): string {
   return crypto.randomUUID();
 }
 
-// Tool入力/出力スキーマの定義
+// Define Tool input/output schemas
 const CreateSessionInputSchema = z.object({
   initial_tasks: z.array(z.string()).describe(
-    "初期タスクのリスト。各タスクは説明文で与えられます",
+    "List of initial tasks. Each task is given as a description.",
   ),
 });
 export type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;
@@ -46,7 +46,7 @@ export type CreateSessionOutput = z.infer<typeof CreateSessionOutputSchema>;
 
 const GetTasksInputSchema = z.object({
   session_id: z.string().describe(
-    "タスクを取得するセッションのID",
+    "ID of the session to get tasks from",
   ),
 });
 export type GetTasksInput = z.infer<typeof GetTasksInputSchema>;
@@ -58,11 +58,11 @@ export type GetTasksOutput = z.infer<typeof GetTasksOutputSchema>;
 
 const UpdateTaskStatusInputSchema = z.object({
   session_id: z.string().describe(
-    "タスクの状態を更新するセッションのID",
+    "ID of the session to update task status in",
   ),
-  task_id: z.string().describe("状態を更新するタスクのID。"),
+  task_id: z.string().describe("ID of the task to update status for."),
   status: z.enum(["pending", "completed"]).describe(
-    "タスクの新しい状態",
+    "The new status of the task",
   ),
 });
 export type UpdateTaskStatusInput = z.infer<typeof UpdateTaskStatusInputSchema>;
@@ -76,7 +76,7 @@ export type UpdateTaskStatusOutput = z.infer<
 >;
 
 const GetNextPendingTaskInputSchema = z.object({
-  session_id: z.string().describe("タスクの状態を取得するセッションのID"),
+  session_id: z.string().describe("ID of the session to get task status from"),
 });
 export type GetNextPendingTaskInput = z.infer<
   typeof GetNextPendingTaskInputSchema
@@ -103,7 +103,7 @@ function toolOutputWrapper(
   };
 }
 
-// MCPサーバーの作成
+// Create MCP server
 export const server = new McpServer(
   {
     name: "todo-list-server",
@@ -114,7 +114,7 @@ export const server = new McpServer(
   },
 );
 
-// Tool実装: create_session
+// Tool implementation: create_session
 function createSession({ initial_tasks }: CreateSessionInput) {
   if (initial_tasks.length === 0) {
     throw new McpError(
@@ -126,7 +126,7 @@ function createSession({ initial_tasks }: CreateSessionInput) {
   const createdTasks: Task[] = [];
   let taskIdCounter = 1;
 
-  // 初期タスクの作成
+  // Create initial tasks
   if (initial_tasks) {
     for (const description of initial_tasks) {
       const task: Task = {
@@ -139,7 +139,7 @@ function createSession({ initial_tasks }: CreateSessionInput) {
     }
   }
 
-  // セッションの作成と保存
+  // Create and save session
   const session: Session = {
     session_id: sessionId,
     tasks: createdTasks,
@@ -154,7 +154,7 @@ function createSession({ initial_tasks }: CreateSessionInput) {
   }, CreateSessionOutputSchema);
 }
 
-// Tool実装: get_tasks
+// Tool implementation: get_tasks
 function getTasks(input: GetTasksInput) {
   const session = sessions.get(input.session_id);
   if (!session) {
@@ -169,7 +169,7 @@ function getTasks(input: GetTasksInput) {
   }, GetTasksOutputSchema);
 }
 
-// Tool実装: update_task_status
+// Tool implementation: update_task_status
 function updateTaskStatus(
   input: UpdateTaskStatusInput,
 ) {
@@ -197,7 +197,7 @@ function updateTaskStatus(
   }, UpdateTaskStatusOutputSchema);
 }
 
-// Tool実装: get_next_pending_task
+// Tool implementation: get_next_pending_task
 function getNextPendingTask(
   input: GetNextPendingTaskInput,
 ) {
@@ -211,7 +211,7 @@ function getNextPendingTask(
 
   const pendingTasks = session.tasks.filter((t) => t.status === "pending");
 
-  // pending状態のタスクが存在しない場合はnullを返す
+  // Return null if no pending tasks exist
   if (pendingTasks.length === 0) {
     return toolOutputWrapper({
       next_task: null,
@@ -228,8 +228,8 @@ function getNextPendingTask(
 }
 
 const UpdateTasksInputSchema = z.object({
-  session_id: z.string().describe("タスクの状態を更新するセッションのID"),
-  tasks: z.array(TaskSchema).describe("更新するタスクのリスト"),
+  session_id: z.string().describe("ID of the session to update tasks in"),
+  tasks: z.array(TaskSchema).describe("List of tasks to update"),
 });
 export type UpdateTasksInput = z.infer<typeof UpdateTasksInputSchema>;
 
@@ -263,10 +263,10 @@ function updateTasks(input: UpdateTasksInput) {
   }, UpdateTasksOutputSchema);
 }
 
-// Toolの登録
+// Register Tools
 server.tool(
   "create_session",
-  "新しいTODOリストセッションを開始します。初期タスクのリストを説明文で与える必要があります。",
+  "Starts a new TODO list session. A list of initial tasks must be provided as descriptions.",
   CreateSessionInputSchema.shape,
   {
     title: "Create a new TODO list session",
@@ -277,7 +277,7 @@ server.tool(
 
 server.tool(
   "update_task_status",
-  "指定されたタスクの状態を更新します。これにより、タスクを完了(completed)にしたり、未完了(pending)に戻したりできます。",
+  "Updates the status of a specified task. This allows you to mark a task as 'completed' or revert it to 'pending'.",
   UpdateTaskStatusInputSchema.shape,
   {
     title: "Update the status of a task",
@@ -288,7 +288,7 @@ server.tool(
 
 server.tool(
   "update_tasks",
-  "指定されたセッションに存在する複数のタスクを、一括で更新します。",
+  "Updates multiple tasks in a specified session at once.",
   UpdateTasksInputSchema.shape,
   {
     title: "Update tasks in a session",
@@ -299,7 +299,7 @@ server.tool(
 
 server.tool(
   "get_tasks",
-  "指定されたセッションのタスクを取得します",
+  "Gets the tasks for a specified session",
   GetTasksInputSchema.shape,
   {
     title: "Get tasks for a session",
@@ -310,7 +310,7 @@ server.tool(
 
 server.tool(
   "get_next_pending_task",
-  "指定されたセッションで、次に実行すべき未完了(pending)のタスクを1つ取得します。タスクは追加された順で取得されます。",
+  "Gets the next pending task to be executed in the specified session. Tasks are retrieved in the order they were added.",
   GetNextPendingTaskInputSchema.shape,
   {
     title: "Get the next pending task",
@@ -319,7 +319,7 @@ server.tool(
   getNextPendingTask,
 );
 
-// サーバーの起動
+// Start the server
 async function runServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

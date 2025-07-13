@@ -135,7 +135,7 @@ Deno.test("create_session with empty initial_tasks should throw error", async ()
     } as CreateSessionInput,
   });
 
-  // MCPエラーの場合、isError: trueが返される
+  // In case of MCP error, isError: true is returned
   expect((result as { isError: boolean }).isError).toBe(true);
   expect((result as { content: mcpOutputContent }).content[0].text).toContain(
     "initial_tasks must not be empty",
@@ -170,7 +170,7 @@ Deno.test("get_next_pending_task after completing first task", async () => {
   const firstTaskId =
     extractContent<CreateSessionOutput>(createResult).tasks[0].id;
 
-  // 最初のタスクを完了済みにする
+  // Mark the first task as completed
   await client.callTool({
     name: "update_task_status",
     arguments: {
@@ -202,7 +202,7 @@ Deno.test("get_next_pending_task when no pending tasks exist", async () => {
     extractContent<CreateSessionOutput>(createResult).session_id;
   const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
 
-  // 全てのタスクを完了済みにする
+  // Mark all tasks as completed
   for (const task of tasks) {
     await client.callTool({
       name: "update_task_status",
@@ -232,7 +232,7 @@ Deno.test("update_tasks", async () => {
     extractContent<CreateSessionOutput>(createResult).session_id;
   const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
 
-  // 両方のタスクを更新する
+  // Update both tasks
   const updatedTasks = [
     {
       ...tasks[0],
