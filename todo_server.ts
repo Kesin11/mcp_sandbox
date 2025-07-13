@@ -248,7 +248,7 @@ server.tool(
 
 server.tool(
   "update_tasks",
-  "Updates multiple tasks in a specified session at once.",
+  "Updates and adds multiple tasks in a specified session at once.",
   UpdateTasksInputSchema.shape,
   {
     title: "Update tasks in a session",
