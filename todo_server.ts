@@ -75,20 +75,6 @@ export type UpdateTaskStatusOutput = z.infer<
   typeof UpdateTaskStatusOutputSchema
 >;
 
-const GetNextPendingTaskInputSchema = z.object({
-  session_id: z.string().describe("ID of the session to get task status from"),
-});
-export type GetNextPendingTaskInput = z.infer<
-  typeof GetNextPendingTaskInputSchema
->;
-
-const GetNextPendingTaskOutputSchema = z.object({
-  next_task: TaskSchema.nullable(),
-});
-export type GetNextPendingTaskOutput = z.infer<
-  typeof GetNextPendingTaskOutputSchema
->;
-
 function toolOutputWrapper(
   content: unknown,
   outputSchema: z.ZodObject<z.ZodRawShape>,
@@ -197,36 +183,6 @@ function updateTaskStatus(
   }, UpdateTaskStatusOutputSchema);
 }
 
-// Tool implementation: get_next_pending_task
-function getNextPendingTask(
-  input: GetNextPendingTaskInput,
-) {
-  const session = sessions.get(input.session_id);
-  if (!session) {
-    throw new McpError(
-      ErrorCode.InvalidRequest,
-      `Session not found: ${input.session_id}`,
-    );
-  }
-
-  const pendingTasks = session.tasks.filter((t) => t.status === "pending");
-
-  // Return null if no pending tasks exist
-  if (pendingTasks.length === 0) {
-    return toolOutputWrapper({
-      next_task: null,
-    }, GetNextPendingTaskOutputSchema);
-  }
-
-  const nextTask = pendingTasks.reduce((prev, current) =>
-    parseInt(prev.id) < parseInt(current.id) ? prev : current
-  );
-
-  return toolOutputWrapper({
-    next_task: nextTask,
-  }, GetNextPendingTaskOutputSchema);
-}
-
 const UpdateTasksInputSchema = z.object({
   session_id: z.string().describe("ID of the session to update tasks in"),
   tasks: z.array(TaskSchema).describe("List of tasks to update"),
@@ -310,17 +266,6 @@ server.tool(
     idempotentHint: true,
   },
   getTasks,
-);
-
-server.tool(
-  "get_next_pending_task",
-  "Gets the next pending task to be executed in the specified session. Tasks are retrieved in the order they were added.",
-  GetNextPendingTaskInputSchema.shape,
-  {
-    title: "Get the next pending task",
-    idempotentHint: true,
-  },
-  getNextPendingTask,
 );
 
 // Start the server
