@@ -251,12 +251,16 @@ function updateTasks(input: UpdateTasksInput) {
     const index = session.tasks.findIndex((t) => t.id === task.id);
     if (index === -1) {
       session.tasks.push(task);
+      session.next_task_id_counter = Math.max(
+        session.next_task_id_counter,
+        parseInt(task.id, 10) + 1,
+      );
     } else {
       session.tasks[index] = task;
     }
   }
   // sort by id
-  session.tasks.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  session.tasks.sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
   return toolOutputWrapper({
     tasks: session.tasks,
