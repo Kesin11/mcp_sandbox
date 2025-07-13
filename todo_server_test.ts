@@ -135,7 +135,7 @@ Deno.test("create_session with empty initial_tasks should throw error", async ()
     } as CreateSessionInput,
   });
 
-  // MCPエラーの場合、isError: trueが返される
+  // In case of MCP error, isError: true is returned
   expect((result as { isError: boolean }).isError).toBe(true);
   expect((result as { content: mcpOutputContent }).content[0].text).toContain(
     "initial_tasks must not be empty",
@@ -170,7 +170,7 @@ Deno.test("get_next_pending_task after completing first task", async () => {
   const firstTaskId =
     extractContent<CreateSessionOutput>(createResult).tasks[0].id;
 
-  // 最初のタスクを完了済みにする
+  // Mark the first task as completed
   await client.callTool({
     name: "update_task_status",
     arguments: {
@@ -202,7 +202,7 @@ Deno.test("get_next_pending_task when no pending tasks exist", async () => {
     extractContent<CreateSessionOutput>(createResult).session_id;
   const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
 
-  // 全てのタスクを完了済みにする
+  // Mark all tasks as completed
   for (const task of tasks) {
     await client.callTool({
       name: "update_task_status",
@@ -223,5 +223,91 @@ Deno.test("get_next_pending_task when no pending tasks exist", async () => {
 
   expect(extractContent(result)).toEqual({
     next_task: null,
+  });
+});
+
+Deno.test("update_tasks", async () => {
+  const createResult = await createSession(client);
+  const sessionId =
+    extractContent<CreateSessionOutput>(createResult).session_id;
+  const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
+
+  // Update both tasks
+  const updatedTasks = [
+    {
+      ...tasks[0],
+      status: "completed" as const,
+    },
+    {
+      ...tasks[1],
+      description: "Write more tests for the app",
+    },
+  ];
+
+  const result = await client.callTool({
+    name: "update_tasks",
+    arguments: {
+      session_id: sessionId,
+      tasks: updatedTasks,
+    },
+  });
+
+  expect(extractContent(result)).toEqual({
+    tasks: [
+      {
+        id: tasks[0].id,
+        description: "Create a weather app",
+        status: "completed",
+      },
+      {
+        id: tasks[1].id,
+        description: "Write more tests for the app",
+        status: "pending",
+      },
+    ],
+  });
+});
+
+Deno.test("update_tasks with adding new task", async () => {
+  const createResult = await createSession(client);
+  const sessionId =
+    extractContent<CreateSessionOutput>(createResult).session_id;
+  const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
+
+  const newTasks = [
+    ...tasks,
+    {
+      id: "3",
+      description: "Deploy the app",
+      status: "pending" as const,
+    },
+  ];
+
+  const result = await client.callTool({
+    name: "update_tasks",
+    arguments: {
+      session_id: sessionId,
+      tasks: newTasks,
+    },
+  });
+
+  expect(extractContent(result)).toEqual({
+    tasks: [
+      {
+        id: tasks[0].id,
+        description: "Create a weather app",
+        status: "pending",
+      },
+      {
+        id: tasks[1].id,
+        description: "Write tests for the app",
+        status: "pending",
+      },
+      {
+        id: "3",
+        description: "Deploy the app",
+        status: "pending",
+      },
+    ],
   });
 });
