@@ -225,3 +225,89 @@ Deno.test("get_next_pending_task when no pending tasks exist", async () => {
     next_task: null,
   });
 });
+
+Deno.test("update_tasks", async () => {
+  const createResult = await createSession(client);
+  const sessionId =
+    extractContent<CreateSessionOutput>(createResult).session_id;
+  const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
+
+  // 両方のタスクを更新する
+  const updatedTasks = [
+    {
+      ...tasks[0],
+      status: "completed" as const,
+    },
+    {
+      ...tasks[1],
+      description: "Write more tests for the app",
+    },
+  ];
+
+  const result = await client.callTool({
+    name: "update_tasks",
+    arguments: {
+      session_id: sessionId,
+      tasks: updatedTasks,
+    },
+  });
+
+  expect(extractContent(result)).toEqual({
+    tasks: [
+      {
+        id: tasks[0].id,
+        description: "Create a weather app",
+        status: "completed",
+      },
+      {
+        id: tasks[1].id,
+        description: "Write more tests for the app",
+        status: "pending",
+      },
+    ],
+  });
+});
+
+Deno.test("update_tasks with adding new task", async () => {
+  const createResult = await createSession(client);
+  const sessionId =
+    extractContent<CreateSessionOutput>(createResult).session_id;
+  const tasks = extractContent<CreateSessionOutput>(createResult).tasks;
+
+  const newTasks = [
+    ...tasks,
+    {
+      id: "3",
+      description: "Deploy the app",
+      status: "pending" as const,
+    },
+  ];
+
+  const result = await client.callTool({
+    name: "update_tasks",
+    arguments: {
+      session_id: sessionId,
+      tasks: newTasks,
+    },
+  });
+
+  expect(extractContent(result)).toEqual({
+    tasks: [
+      {
+        id: tasks[0].id,
+        description: "Create a weather app",
+        status: "pending",
+      },
+      {
+        id: tasks[1].id,
+        description: "Write tests for the app",
+        status: "pending",
+      },
+      {
+        id: "3",
+        description: "Deploy the app",
+        status: "pending",
+      },
+    ],
+  });
+});

@@ -227,6 +227,42 @@ function getNextPendingTask(
   }, GetNextPendingTaskOutputSchema);
 }
 
+const UpdateTasksInputSchema = z.object({
+  session_id: z.string().describe("タスクの状態を更新するセッションのID"),
+  tasks: z.array(TaskSchema).describe("更新するタスクのリスト"),
+});
+export type UpdateTasksInput = z.infer<typeof UpdateTasksInputSchema>;
+
+const UpdateTasksOutputSchema = z.object({
+  tasks: z.array(TaskSchema),
+});
+export type UpdateTasksOutput = z.infer<typeof UpdateTasksOutputSchema>;
+
+function updateTasks(input: UpdateTasksInput) {
+  const session = sessions.get(input.session_id);
+  if (!session) {
+    throw new McpError(
+      ErrorCode.InvalidRequest,
+      `Session not found: ${input.session_id}`,
+    );
+  }
+
+  for (const task of input.tasks) {
+    const index = session.tasks.findIndex((t) => t.id === task.id);
+    if (index === -1) {
+      session.tasks.push(task);
+    } else {
+      session.tasks[index] = task;
+    }
+  }
+  // sort by id
+  session.tasks.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+  return toolOutputWrapper({
+    tasks: session.tasks,
+  }, UpdateTasksOutputSchema);
+}
+
 // Toolの登録
 server.tool(
   "create_session",
@@ -248,6 +284,17 @@ server.tool(
     destructiveHint: true,
   },
   updateTaskStatus,
+);
+
+server.tool(
+  "update_tasks",
+  "指定されたセッションに存在する複数のタスクを、一括で更新します。",
+  UpdateTasksInputSchema.shape,
+  {
+    title: "Update tasks in a session",
+    destructiveHint: true,
+  },
+  updateTasks,
 );
 
 server.tool(
