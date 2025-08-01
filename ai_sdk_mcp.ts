@@ -257,8 +257,8 @@ async function main() {
 
 1. create_session: 新しいセッションを作成し、初期タスクを設定
 2. get_tasks: セッション内のタスク一覧を取得
-3. update_task_status: タスクの状態を更新（完了/未完了）
-4. get_next_pending_task: 次に実行すべき未完了タスクを取得
+3. update_task_status: 指定されたタスクの状態を更新（完了/未完了）
+4. update_tasks: 指定されたセッション内の複数のタスクを一度に更新・追加
 
 ユーザーの要求を理解し、適切な順序でツールを呼び出してタスクを管理し、
 結果をわかりやすく日本語で説明してください。`,
